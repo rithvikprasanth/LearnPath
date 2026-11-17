@@ -60,7 +60,7 @@ function renderMiniTimer(t) {
   }
   el.hidden = false;
   el.className = `mini-timer phase-${t.phase}`;
-  el.innerHTML = `<span style="color:var(--phase-color)">${icon(t.status === 'running' ? 'timer' : 'pause')}</span>
+  el.innerHTML = `<span class="mini-timer-icon">${icon(t.status === 'running' ? 'timer' : 'pause')}</span>
     <span class="grow">${t.label}${t.status === 'paused' ? ' (paused)' : ''}</span>
     <span class="time">${formatClock(t.remaining)}</span>`;
   el.setAttribute('aria-label', `${t.label} ${formatClock(t.remaining)} remaining. Open Pomodoro`);
@@ -77,10 +77,8 @@ async function main() {
   renderNav();
   renderThemeButton();
   await applyA11y();
-  $('#theme-toggle').addEventListener('click', () => {
-    setTheme(getTheme() === 'dark' ? 'light' : 'dark');
-    renderThemeButton();
-  });
+  $('#theme-toggle').addEventListener('click', () => setTheme(getTheme() === 'dark' ? 'light' : 'dark'));
+  window.addEventListener('theme-changed', renderThemeButton);
 
   await initTimer();
   let lastStatus = '';

@@ -4,11 +4,11 @@
 - [x] Phase 0: Setup (done)
 - [x] Phase 1: Core planner (done)
 - [x] Phase 2: Study (done)
-- [ ] Phase 3: Overview (not started)
+- [x] Phase 3: Overview (done)
 - [ ] Phase 4: Finish (not started)
 
 ## Last pushed commit
-Phase 2: Study viewer (see git log)
+Phase 3: Dashboard, focus blocks, settings (see git log)
 
 ## Decisions (small choices made without asking)
 - Commit author for this repo only: Rithvik Prasanth <223428936+rithvikprasanth@users.noreply.github.com>. No Co-Authored-By lines.
@@ -27,10 +27,14 @@ Phase 2: Study viewer (see git log)
 - Dwell tracking adds real elapsed time every 500 ms (capped at 2 s per tick, only while the tab is visible); a page completes at 5 s.
 - PDF.js 6: documents are closed with `pdf.loadingTask.destroy()` (there is no `pdf.destroy()` in v6).
 - Pages with under 20 characters of text are treated as scanned: no AI call, friendly message.
+- Starting a focus block launches one normal Pomodoro focus session for its topic; the block is marked done when that session completes (or by hand in the block details).
+- Planned blocks whose end time has passed are marked "missed" when the Focus Blocks page opens.
+- Streak = consecutive days (ending today or yesterday) with a focus session or a completed page.
+- Export = all stores except `materials` (PDFs); Import replaces those stores and keeps PDFs.
 - CLAUDE.md and .claude/ are not committed (they're the local brief, not app code).
 
 ## Known issues
 - Viewer toolbar is narrow at 1280px, so long PDF names are cut off with "..." (full name in the tooltip).
 
 ## Next step
-Phase 3: Dashboard, Focus blocks (day/week, start -> Pomodoro), Settings (language, a11y, export/import/reset, About).
+Phase 4: polish pass, final README, one real AI test once .env exists, final push.
