@@ -183,11 +183,13 @@ async function openCreateForm() {
       </div>
       <div class="field">
         <label class="label" for="rf-hours">Hours per week</label>
-        <input class="input" id="rf-hours" name="hours" type="number" min="1" max="40" value="6" required>
+        <input class="input" id="rf-hours" name="hours" type="number" min="${LIMITS.hours.min}" max="${LIMITS.hours.max}" step="1" value="6" required aria-describedby="rf-hours-error">
+        <span class="field-error" id="rf-hours-error" hidden></span>
       </div>
       <div class="field">
         <label class="label" for="rf-weeks">Number of weeks</label>
-        <input class="input" id="rf-weeks" name="weeks" type="number" min="1" max="24" value="4" required>
+        <input class="input" id="rf-weeks" name="weeks" type="number" min="${LIMITS.weeks.min}" max="${LIMITS.weeks.max}" step="1" value="4" required aria-describedby="rf-weeks-error">
+        <span class="field-error" id="rf-weeks-error" hidden></span>
       </div>
     </div>
     <div id="rf-status" aria-live="polite"></div>
@@ -212,23 +214,44 @@ async function openCreateForm() {
   });
 }
 
+// Allowed ranges: up to 25 study hours per week and 24 weeks (keeps plans realistic
+// and small enough for free AI models to finish in time).
+const LIMITS = {
+  hours: { min: 1, max: 25, label: 'Hours per week' },
+  weeks: { min: 1, max: 24, label: 'Number of weeks' },
+};
+
+// Check one number field. Shows a message under the field and returns the number,
+// or null if it is invalid. We never silently change what the student typed.
+function checkNumber(input, errorEl, { min, max, label }) {
+  const raw = input.value.trim();
+  const n = Number(raw);
+  let msg = '';
+  if (raw === '') msg = `Please enter ${label.toLowerCase()}.`;
+  else if (!Number.isInteger(n)) msg = `${label} must be a whole number.`;
+  else if (n < min || n > max) msg = `${label} must be between ${min} and ${max} (you entered ${n}).`;
+  errorEl.textContent = msg;
+  errorEl.hidden = !msg;
+  input.setAttribute('aria-invalid', String(!!msg));
+  return msg ? null : n;
+}
+
 function readForm(el) {
   const form = $('#roadmap-form', el);
   const goal = form.goal.value.trim();
-  const valid = goal.length >= 3;
-  $('#rf-goal-error', el).hidden = valid;
-  form.goal.setAttribute('aria-invalid', String(!valid));
-  if (!valid) {
-    form.goal.focus();
+  const goalOk = goal.length >= 3;
+  $('#rf-goal-error', el).hidden = goalOk;
+  form.goal.setAttribute('aria-invalid', String(!goalOk));
+  const hoursPerWeek = checkNumber(form.hours, $('#rf-hours-error', el), LIMITS.hours);
+  const weeks = checkNumber(form.weeks, $('#rf-weeks-error', el), LIMITS.weeks);
+
+  // Focus the first field with a problem.
+  const firstBad = [goalOk ? null : form.goal, hoursPerWeek === null ? form.hours : null, weeks === null ? form.weeks : null].find(Boolean);
+  if (firstBad) {
+    firstBad.focus();
     return null;
   }
-  return {
-    goal,
-    level: form.level.value,
-    language: 'en',
-    hoursPerWeek: Math.max(1, Math.min(40, Number(form.hours.value) || 6)),
-    weeks: Math.max(1, Math.min(24, Number(form.weeks.value) || 4)),
-  };
+  return { goal, level: form.level.value, language: 'en', hoursPerWeek, weeks };
 }
 
 // Generate with the AI. While waiting, show a timer. If the free AI is busy or slow,
