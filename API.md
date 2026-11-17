@@ -8,13 +8,13 @@ All study data lives in the browser (IndexedDB database `learnpath`, version 1).
 |---|---|---|---|
 | `paths` | `id` | none | `id, title, goal, level, hoursPerWeek, weeks, language, weekInfo[{week,title,focus}], active (bool), source ('ai' or 'sample'), createdAt` |
 | `topics` | `id` | `pathId` | `id, pathId, week, order, title, description, estHours, done (bool), doneAt` |
-| `materials` | `id` | `topicId`, `pathId` | `id, topicId, pathId, name, size, type, blob (PDF Blob), totalPages, lastPage, zoom, createdAt` |
+| `materials` | `id` | `topicId`, `pathId` | `id, topicId, pathId, name, size, type, blob (PDF Blob), totalPages, createdAt` |
 | `page_progress` | `id` (`materialId:page`) | `materialId` | `id, materialId, page, seconds, completed (bool, after 5 s dwell), visitedAt` |
 | `pomodoro_sessions` | `id` | `topicId`, `startedAt` | `id, topicId, pathId, blockId, phase ('focus'), startedAt, endedAt, minutes, completed (bool)` |
 | `focus_blocks` | `id` | `date` | `id, date ('YYYY-MM-DD'), start ('HH:MM'), duration (min), topicId, status ('planned','done','missed'), createdAt` |
 | `quiz_attempts` | `id` | `topicId` | `id, topicId, materialId, page, score, total, createdAt` |
 | `ai_cache` | `key` | none | `key (action+language+input hash), action, language, data, createdAt` |
-| `settings` | `key` | none | `key, value`. Keys: `pomodoro`, `language`, `a11y`, `aiUsage {date, count}` |
+| `settings` | `key` | none | `key, value`. Keys: `pomodoro`, `language`, `a11y`, `aiUsage {date, count}`, `reader:<materialId> {lastPage, zoom}` (kept apart so page turns never rewrite the PDF Blob) |
 
 `localStorage` holds only `lp-theme` and `lp-pomodoro` (the running timer state).
 

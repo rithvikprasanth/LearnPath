@@ -88,6 +88,7 @@ async function handleStatic(req, res) {
     const info = await stat(file);
     if (!info.isFile()) throw new Error('not a file');
     res.setHeader('Content-Type', MIME[extname(file).toLowerCase()] || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'no-cache'); // always pick up edits during development
     res.end(await readFile(file));
   } catch {
     res.statusCode = 404;
