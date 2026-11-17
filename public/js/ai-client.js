@@ -41,11 +41,15 @@ function looksValid(action, data) {
   return false;
 }
 
+// Errors worth an automatic retry (the free AI was busy, slow or gave a bad answer).
+export const RETRYABLE = ['rate_limited', 'timeout', 'upstream', 'bad_output', 'network'];
+
 /**
  * Ask the AI. Returns { ok: true, data, cached } or { ok: false, error, message }.
- * It never throws, so callers can always show a friendly message and use a fallback.
+ * It never throws, so callers can always show a friendly message.
+ * `isRetry: true` = an automatic retry of the same click, so it does not count toward the daily limit.
  */
-export async function askAI(action, input, language) {
+export async function askAI(action, input, language, { isRetry = false } = {}) {
   language = language || (await getSetting('language'));
   const key = `${action}|${language}|${await hash(input)}`;
 
@@ -54,7 +58,7 @@ export async function askAI(action, input, language) {
   if (cached) return { ok: true, data: cached.data, cached: true };
 
   // 2. Daily limit for this browser.
-  if ((await aiRequestsLeft()) <= 0) {
+  if (!isRetry && (await aiRequestsLeft()) <= 0) {
     return { ok: false, error: 'daily_limit', message: `You have used all ${DAILY_LIMIT} AI requests for today. They reset tomorrow. Everything else still works.` };
   }
 
@@ -71,8 +75,9 @@ export async function askAI(action, input, language) {
     const body = await response.json().catch(() => null);
 
     // Requests that reached the AI service count toward today's limit.
-    if (!body || !['bad_request', 'no_key'].includes(body.error)) await countRequest();
+    if (!isRetry && (!body || !['bad_request', 'no_key'].includes(body.error))) await countRequest();
 
+    if (!body && response.status === 504) return { ok: false, error: 'timeout', message: 'The free AI took too long to answer. Please try again; it is often faster the second time.' };
     if (!body) return { ok: false, error: 'network', message: 'Could not reach the AI service. Check your internet connection.' };
     if (!body.ok) return { ok: false, error: body.error, message: body.message || 'The AI could not answer right now.' };
     if (!looksValid(action, body.data)) return { ok: false, error: 'bad_output', message: 'The AI gave an answer we could not read. Please try again.' };

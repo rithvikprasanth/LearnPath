@@ -16,11 +16,11 @@ Phase 4: polish pass and final README (see git log)
 - Easy-to-read font option uses Atkinson Hyperlegible (free, via @fontsource), served locally.
 - vendor files: pdfjs-dist 6.5 (pdf.min.mjs + worker), chart.js 4.6 UMD, Inter 400-700, Atkinson 400/700.
 - vercel.json: `outputDirectory: public`, `functions.api/ai.js.maxDuration: 60`.
-- OpenRouter free-model check (2026-11-17): the public models API returned an unusual short list with no ":free" models, so the free list could not be verified. Models come from OPENROUTER_MODELS; the code always appends "openrouter/free" as the last fallback. User should check https://openrouter.ai/models?max_price=0 and set OPENROUTER_MODELS.
+- OpenRouter models (re-checked 2026-11-17 with the live API): nvidia/nemotron-3.5-super-vl:free (main, fastest reliable JSON), google/gemma-4-31b-it:free, google/gemma-4-26b-a4b-it:free. All have non-mandatory reasoning.
 
-- Server validates and retries once on bad JSON; the browser validates again and falls back to a sample plan (sample-plan.js).
+- Roadmap: server validates and retries once on bad JSON; the browser retries automatically up to 3 tries on busy/slow/bad answers (retries do not count toward the daily limit). No sample plan: on failure the student clicks Try again (sample-plan.js removed at the user's request; a fake plan is not acceptable for the demo). Roadmaps are English-only (language choice removed from the form).
 - AI_MOCK=1 in .env makes /api/ai return canned data (local testing only, saves the free quota).
-- OpenRouter `models` fallback list: first 2 models from OPENROUTER_MODELS + "openrouter/free" (kept to 3).
+- OpenRouter request: `models` = up to 3 ids from OPENROUTER_MODELS (only ids ending in ":free"), `reasoning: { enabled: false }` (thinking off: ~2x faster, no truncated JSON), `max_tokens: 6000`. "openrouter/free" is no longer added (it routed to tiny models that returned empty answers).
 - Daily AI limit (15 per browser) counts requests that reach the AI; bad_request / no_key do not count.
 - Pomodoro: skipping a focus session logs it as "partial" if at least 1 minute was studied; it does not count toward the 4-cycle set.
 - Viewer: last page + zoom saved in settings key `reader:<materialId>` so page turns never rewrite the PDF Blob.
@@ -34,8 +34,8 @@ Phase 4: polish pass and final README (see git log)
 - CLAUDE.md and .claude/ are not committed (they're the local brief, not app code).
 
 ## Known issues
-- No real OpenRouter call has been made yet (no .env during the build); all AI paths were tested with AI_MOCK=1 and the no-key fallback.
-- The free model list could not be verified on 2026-11-17 (see Decisions).
+- Free models can still be busy at peak times; the app retries automatically and then asks the student to try again.
+- Vercel env var OPENROUTER_MODELS must match .env (third model changed from ERNIE to gemma-4-26b-a4b-it).
 - Playwright is not installed, so the 1280px checks were done in the Claude desktop browser pane instead.
 - Viewer toolbar is narrow at 1280px, so long PDF names are cut off with "..." (full name in the tooltip).
 

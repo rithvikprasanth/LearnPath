@@ -6,7 +6,7 @@ All study data lives in the browser (IndexedDB database `learnpath`, version 1).
 
 | Store | Key | Indexes | Fields |
 |---|---|---|---|
-| `paths` | `id` | none | `id, title, goal, level, hoursPerWeek, weeks, language, weekInfo[{week,title,focus}], active (bool), source ('ai' or 'sample'), createdAt` |
+| `paths` | `id` | none | `id, title, goal, level, hoursPerWeek, weeks, language ('en'), weekInfo[{week,title,focus}], active (bool), source ('ai'; older data may say 'sample'), createdAt` |
 | `topics` | `id` | `pathId` | `id, pathId, week, order, title, description, estHours, done (bool), doneAt` |
 | `materials` | `id` | `topicId`, `pathId` | `id, topicId, pathId, name, size, type, blob (PDF Blob), totalPages, createdAt` |
 | `page_progress` | `id` (`materialId:page`) | `materialId` | `id, materialId, page, seconds, completed (bool, after 5 s dwell), visitedAt` |

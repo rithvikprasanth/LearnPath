@@ -147,7 +147,11 @@ async function callOpenRouter(messages, models, timeoutMs) {
         models, // fallback list: if one model is busy, OpenRouter tries the next
         messages,
         temperature: 0.4,
-        max_tokens: 4000, // room for "thinking" models to reason and still finish the JSON
+        max_tokens: 6000, // enough for a 24-week plan
+        // Turn off "thinking": it doubled the time and used up the token budget, which cut
+        // long roadmaps off mid-JSON. (Docs: openrouter.ai/docs -> Reasoning Tokens.)
+        // Only use models whose reasoning is NOT mandatory (see README).
+        reasoning: { enabled: false },
       }),
     });
     const data = await response.json().catch(() => ({}));
@@ -210,7 +214,7 @@ export default async function handler(req, res) {
 
   // Retry once if the shape was wrong (and there is time left).
   const left = TIME_BUDGET_MS - (Date.now() - started);
-  if (!data && left > 8000) {
+  if (!data && left > 15000) {
     const retryMessages = [...messages, { role: 'assistant', content: result.text.slice(0, 6000) }, { role: 'user', content: RETRY_REMINDER }];
     result = await callOpenRouter(retryMessages, models, left);
     if (result.error) return fail(res, STATUS[result.error], result.error, FRIENDLY[result.error]);

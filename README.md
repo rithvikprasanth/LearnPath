@@ -15,7 +15,7 @@ LearnPath is built for students who can't afford paid coaching or study apps, es
 
 - **100% free.** No subscription, no ads, no payment, no sign-up. Just open the link. Hosting (Vercel Hobby) and AI (OpenRouter free models) cost nothing.
 - **Private by design.** There are no accounts and no database of students. PDFs and progress are stored only in the student's browser (IndexedDB). Only the text of **one page** is sent to the AI, and only when the student clicks an AI button.
-- **Regional languages.** Explanations, quizzes and roadmaps can be requested in English, Hindi, Tamil, Telugu, Kannada, Malayalam, Bengali or Marathi. English is the most reliable on free models.
+- **Regional languages.** Study Buddy explanations and quizzes can be requested in English, Hindi, Tamil, Telugu, Kannada, Malayalam, Bengali or Marathi. Roadmaps are always made in English, because free models are only reliable in English for long structured plans.
 - **Accessible.** "Read aloud" (browser text-to-speech), an easy-to-read font option (Atkinson Hyperlegible, designed for low-vision readers and helpful for many dyslexic readers), a large-text option, full keyboard use, visible focus and WCAG AA contrast in light and dark themes.
 - **Low data use.** Light pages, no frameworks, no CDNs, and AI answers are cached so the same page is never sent twice.
 - **Honest progress.** A page counts as read only after 5 seconds on it, so skipping through a PDF doesn't fake progress. This builds real study habits.
@@ -24,7 +24,7 @@ LearnPath is built for students who can't afford paid coaching or study apps, es
 
 | Area | What it does |
 |---|---|
-| **AI roadmap** | Form (goal, level, hours/week, weeks, language) → the AI returns strict JSON (weeks → topics). It's validated, with one retry if the JSON is bad, and falls back to a built-in sample plan if the AI is busy. You get a weekly trail with checkable topics, and you can keep several roadmaps (one is "active"). |
+| **AI roadmap** | Form (goal, level, hours/week, weeks) → the AI returns strict JSON (weeks → topics), always in English. It's validated, with one server retry if the JSON is bad. While it works, a timer shows progress. If the free AI is busy or slow, the app **retries automatically** (up to 3 tries; only the first counts toward the daily limit). It never makes a fake plan: if every try fails, the student sees why and clicks **Try again**. You can keep several roadmaps (one is "active"). |
 | **Pomodoro** | Default 25/5/15 with a long break after 4 sessions (all configurable). Time is computed from timestamps, so it never drifts and it survives tab sleep and page refresh. Start, pause, resume, skip, reset and auto-start, with a sound and browser notification at the end of each phase. Every focus session is logged to a roadmap topic. |
 | **Focus blocks** | Plan blocks by date, start time, duration and topic. Day and week views, with planned/done/missed status. **Start** launches the Pomodoro for that topic. Includes a weekly focus-hours chart. |
 | **Study viewer** | Upload a PDF to a topic (PDF only, max 20 MB, stored in the browser). The PDF.js viewer has page navigation, zoom, keyboard shortcuts and resumes at your last page. A page completes after 5 s of reading, and a page map shows what's done. |
@@ -59,7 +59,7 @@ Free-tier safety:
 - The function only accepts the 3 actions and the 8 languages, and caps the input at 4,000 characters. It is **not** a general proxy.
 - The OpenRouter key lives only in a server environment variable. It is never in the browser and never committed.
 - Each browser can make 15 AI requests per day ("12 AI requests left today"), and answers are cached in IndexedDB.
-- A list of fallback models (`OPENROUTER_MODELS` plus `openrouter/free`) is tried in order if one is busy.
+- A list of up to 3 free fallback models (`OPENROUTER_MODELS`) is tried in order if one is busy. "Thinking" (reasoning) is turned off, which makes answers about twice as fast and stops long plans from being cut off.
 - If the AI fails or hits the rate limit (429), students see a friendly message and the rest of the app keeps working.
 
 ## Environment variables
@@ -67,7 +67,7 @@ Free-tier safety:
 | Name | Example | Notes |
 |---|---|---|
 | `OPENROUTER_API_KEY` | `sk-or-...` | From openrouter.ai → Keys (free account). Never commit it. |
-| `OPENROUTER_MODELS` | `model-a:free,model-b:free,openrouter/free` | Free model IDs, comma-separated, in priority order. Check the current list at https://openrouter.ai/models?max_price=0 (it changes often). The first two are used, with `openrouter/free` always added last. |
+| `OPENROUTER_MODELS` | `nvidia/nemotron-3.5-super-vl:free,google/gemma-4-31b-it:free,google/gemma-4-26b-a4b-it:free` | Up to 3 free model IDs (ending in `:free`), comma-separated, in priority order. Pick models whose reasoning is **not mandatory** (the function turns thinking off, and mandatory-reasoning models reject that). Check https://openrouter.ai/models?max_price=0 (the list changes often). |
 | `AI_MOCK` | `1` | Optional, **local testing only**: returns sample AI answers without calling OpenRouter. |
 
 ## Run locally

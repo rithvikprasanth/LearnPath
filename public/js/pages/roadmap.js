@@ -1,9 +1,7 @@
 // Roadmap page: create AI roadmaps, see the weekly trail, check off topics.
 import { getAll, get, put, putMany, del, delByIndex, getAllByIndex, uid } from '../db.js';
-import { askAI } from '../ai-client.js';
-import { samplePlan } from '../sample-plan.js';
+import { askAI, RETRYABLE } from '../ai-client.js';
 import { pathProgress } from '../progress.js';
-import { getSetting, LANGUAGE_OPTIONS } from '../settings.js';
 import { startFocusFor } from '../timer.js';
 import { navigate, refresh } from '../router.js';
 import { icon } from '../icons.js';
@@ -170,22 +168,18 @@ function topicRow(t, pct, materialCount) {
 }
 
 // ---------- create a roadmap ----------
+// Roadmaps are always generated in English: free models are only reliable in English.
 async function openCreateForm() {
-  const language = await getSetting('language');
   const body = `<form class="stack" id="roadmap-form" novalidate>
     <div class="field">
       <label class="label" for="rf-goal">What do you want to learn?</label>
       <input class="input" id="rf-goal" name="goal" required maxlength="200" placeholder="e.g. Class 12 Physics: Electrostatics, or Learn JavaScript basics">
       <span class="field-error" id="rf-goal-error" hidden>Please describe your goal (at least 3 characters).</span>
     </div>
-    <div class="form-grid">
+    <div class="grid-3">
       <div class="field">
         <label class="label" for="rf-level">Your level</label>
         <select class="select" id="rf-level" name="level">${LEVELS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
-      </div>
-      <div class="field">
-        <label class="label" for="rf-lang">Plan language</label>
-        <select class="select" id="rf-lang" name="language">${LANGUAGE_OPTIONS.map(([v, l]) => `<option value="${v}" ${v === language ? 'selected' : ''}>${l}</option>`).join('')}</select>
       </div>
       <div class="field">
         <label class="label" for="rf-hours">Hours per week</label>
@@ -196,7 +190,7 @@ async function openCreateForm() {
         <input class="input" id="rf-weeks" name="weeks" type="number" min="1" max="24" value="4" required>
       </div>
     </div>
-    <p class="hint">English gives the most reliable plans on free AI models. If the AI is busy, you get a simple sample plan instead.</p>
+    <div id="rf-status" aria-live="polite"></div>
   </form>`;
 
   const modal = openModal({
@@ -204,7 +198,7 @@ async function openCreateForm() {
     body,
     actions: [
       { label: 'Cancel', variant: 'secondary', value: null },
-      { label: 'Generate roadmap', variant: 'primary', onClick: (btn, el) => submitForm(btn, el) },
+      { label: 'Generate roadmap', variant: 'primary', onClick: (btn, el) => submitForm(btn, el, modal) },
     ],
   });
   // Pressing Enter in a field also submits (the buttons live outside the <form>).
@@ -218,46 +212,85 @@ async function openCreateForm() {
   });
 }
 
-async function submitForm(btn, el) {
+function readForm(el) {
   const form = $('#roadmap-form', el);
   const goal = form.goal.value.trim();
-  const goalError = $('#rf-goal-error', el);
   const valid = goal.length >= 3;
-  goalError.hidden = valid;
+  $('#rf-goal-error', el).hidden = valid;
   form.goal.setAttribute('aria-invalid', String(!valid));
   if (!valid) {
     form.goal.focus();
-    return false;
+    return null;
   }
-  const details = {
+  return {
     goal,
     level: form.level.value,
-    language: form.language.value,
+    language: 'en',
     hoursPerWeek: Math.max(1, Math.min(40, Number(form.hours.value) || 6)),
     weeks: Math.max(1, Math.min(24, Number(form.weeks.value) || 4)),
   };
-
-  setLoading(btn, true);
-  const input = `Goal: ${details.goal}\nLevel: ${details.level}\nHours per week: ${details.hoursPerWeek}\nNumber of weeks: ${details.weeks}`;
-  const result = await askAI('roadmap', input, details.language);
-  setLoading(btn, false);
-
-  let plan;
-  let source = 'ai';
-  if (result.ok) {
-    plan = result.data;
-  } else {
-    plan = samplePlan(details);
-    source = 'sample';
-    toast(`${result.message} We made a sample plan for you instead.`, 'warning', 7000);
-  }
-  const pathId = await savePlan(plan, details, source);
-  if (source === 'ai') toast(result.cached ? 'Roadmap ready (from cache).' : 'Your AI roadmap is ready!', 'success');
-  navigate(`#/roadmap?path=${pathId}`);
-  return true;
 }
 
-async function savePlan(plan, details, source) {
+// Generate with the AI. While waiting, show a timer. If the free AI is busy or slow,
+// retry automatically (up to 3 tries in total). We never make a fake/sample plan:
+// if every try fails, the student sees why and can click "Try again".
+const MAX_TRIES = 3;
+
+async function submitForm(btn, el, modal) {
+  const details = readForm(el);
+  if (!details) return false;
+  const status = $('#rf-status', el);
+
+  let closed = false;
+  modal.result.then(() => (closed = true));
+
+  setLoading(btn, true);
+  const started = Date.now();
+  let attempt = 1;
+  const showWaiting = () => {
+    const secs = Math.round((Date.now() - started) / 1000);
+    const retryNote = attempt > 1 ? ` (the AI was busy, trying again: ${attempt} of ${MAX_TRIES})` : '';
+    status.innerHTML = `<div class="alert" role="status">${icon('sparkles')}<div><strong>Building your plan with free AI... ${secs}s</strong>${esc(retryNote)}<br>
+      <span class="xs muted">This usually takes 10 to 40 seconds. Please keep this window open.</span></div></div>`;
+  };
+  showWaiting();
+  const timer = setInterval(showWaiting, 1000);
+
+  const input = `Goal: ${details.goal}
+Level: ${details.level}
+Hours per week: ${details.hoursPerWeek}
+Number of weeks: ${details.weeks}`;
+  let result = await askAI('roadmap', input, 'en');
+  while (!result.ok && RETRYABLE.includes(result.error) && attempt < MAX_TRIES && !closed) {
+    attempt += 1;
+    showWaiting();
+    await new Promise((r) => setTimeout(r, 3000)); // short pause so a busy model can recover
+    if (closed) break;
+    result = await askAI('roadmap', input, 'en', { isRetry: true });
+  }
+  clearInterval(timer);
+  setLoading(btn, false);
+  if (closed) return false; // the student cancelled while waiting
+
+  if (result.ok) {
+    const pathId = await savePlan(result.data, details);
+    toast(result.cached ? 'Roadmap ready (from cache).' : 'Your AI roadmap is ready!', 'success');
+    modal.close(true);
+    navigate(`#/roadmap?path=${pathId}`);
+    return false;
+  }
+
+  // Every try failed: explain why. Nothing is saved, so no fake plan appears.
+  btn.textContent = 'Try again';
+  const tries = attempt > 1 ? ` (tried ${attempt} times)` : '';
+  status.innerHTML = `<div class="alert alert-warning" role="alert">${icon('alert')}<div>
+      <strong>The AI could not make your plan${esc(tries)}.</strong> ${esc(result.message)}
+      ${RETRYABLE.includes(result.error) ? '<br><span class="xs">Free AI models are sometimes busy. Wait a minute, then click "Try again".</span>' : ''}
+    </div></div>`;
+  return false; // keep the dialog open
+}
+
+async function savePlan(plan, details) {
   const pathId = uid();
   const now = Date.now();
   const all = await getAll('paths');
@@ -272,7 +305,7 @@ async function savePlan(plan, details, source) {
     language: details.language,
     weekInfo: plan.weeks.map((w, i) => ({ week: i + 1, title: w.title || `Week ${i + 1}`, focus: w.focus || '' })),
     active: true,
-    source,
+    source: 'ai',
     createdAt: now,
   });
   const topics = [];
