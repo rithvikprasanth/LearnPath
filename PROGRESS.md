@@ -5,10 +5,10 @@
 - [x] Phase 1: Core planner (done)
 - [x] Phase 2: Study (done)
 - [x] Phase 3: Overview (done)
-- [ ] Phase 4: Finish (not started)
+- [x] Phase 4: Finish (done; one real AI call + live Vercel check still waiting on .env / deploy)
 
 ## Last pushed commit
-Phase 3: Dashboard, focus blocks, settings (see git log)
+Phase 4: polish pass and final README (see git log)
 
 ## Decisions (small choices made without asking)
 - Commit author for this repo only: Rithvik Prasanth <223428936+rithvikprasanth@users.noreply.github.com>. No Co-Authored-By lines.
@@ -34,7 +34,11 @@ Phase 3: Dashboard, focus blocks, settings (see git log)
 - CLAUDE.md and .claude/ are not committed (they're the local brief, not app code).
 
 ## Known issues
+- No real OpenRouter call has been made yet (no .env during the build); all AI paths were tested with AI_MOCK=1 and the no-key fallback.
+- The free model list could not be verified on 2026-11-17 (see Decisions).
+- Playwright is not installed, so the 1280px checks were done in the Claude desktop browser pane instead.
 - Viewer toolbar is narrow at 1280px, so long PDF names are cut off with "..." (full name in the tooltip).
 
 ## Next step
-Phase 4: polish pass, final README, one real AI test once .env exists, final push.
+1. User creates .env (OPENROUTER_API_KEY + free OPENROUTER_MODELS) -> restart `npm run dev` -> run ONE real roadmap + ONE explain call to confirm the free models answer in the right shape.
+2. Friend imports the repo on Vercel and adds the two env vars -> check the live link.

@@ -10,7 +10,9 @@ const MAX_BYTES = 20 * 1024 * 1024; // 20 MB
 
 export async function render(root, { query }) {
   root.innerHTML = `<div class="page">${header()}<div class="card">${skeleton(4)}</div></div>`;
-  const path = await getActivePath();
+  // A topic link (from any roadmap) opens that topic's roadmap; otherwise use the active one.
+  const linkedTopic = query.get('topic') ? await get('topics', query.get('topic')) : null;
+  const path = linkedTopic ? await get('paths', linkedTopic.pathId) : await getActivePath();
 
   if (!path) {
     root.innerHTML = `<div class="page">${header()}${emptyState({
