@@ -183,12 +183,14 @@ async function openCreateForm() {
       </div>
       <div class="field">
         <label class="label" for="rf-hours">Hours per week</label>
-        <input class="input" id="rf-hours" name="hours" type="number" min="${LIMITS.hours.min}" max="${LIMITS.hours.max}" step="1" value="6" required aria-describedby="rf-hours-error">
+        <input class="input" id="rf-hours" name="hours" type="number" min="${LIMITS.hours.min}" max="${LIMITS.hours.max}" step="1" required
+          placeholder="e.g. 6 (max ${LIMITS.hours.max})" aria-describedby="rf-hours-error">
         <span class="field-error" id="rf-hours-error" hidden></span>
       </div>
       <div class="field">
         <label class="label" for="rf-weeks">Number of weeks</label>
-        <input class="input" id="rf-weeks" name="weeks" type="number" min="${LIMITS.weeks.min}" max="${LIMITS.weeks.max}" step="1" value="4" required aria-describedby="rf-weeks-error">
+        <input class="input" id="rf-weeks" name="weeks" type="number" min="${LIMITS.weeks.min}" max="${LIMITS.weeks.max}" step="1" required
+          placeholder="e.g. 4 (max ${LIMITS.weeks.max})" aria-describedby="rf-weeks-error">
         <span class="field-error" id="rf-weeks-error" hidden></span>
       </div>
     </div>
@@ -205,6 +207,10 @@ async function openCreateForm() {
   });
   // Pressing Enter in a field also submits (the buttons live outside the <form>).
   const form = $('#roadmap-form', modal.el);
+  // Check hours and weeks while the student types, so a too-high value is flagged at once.
+  // (An empty field is only flagged when they click Generate.)
+  form.hours.addEventListener('input', () => checkNumber(form.hours, $('#rf-hours-error', modal.el), LIMITS.hours, { allowEmpty: true }));
+  form.weeks.addEventListener('input', () => checkNumber(form.weeks, $('#rf-weeks-error', modal.el), LIMITS.weeks, { allowEmpty: true }));
   form.addEventListener('submit', (e) => e.preventDefault());
   form.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && e.target.matches('input')) {
@@ -214,20 +220,23 @@ async function openCreateForm() {
   });
 }
 
-// Allowed ranges: up to 25 study hours per week and 24 weeks (keeps plans realistic
-// and small enough for free AI models to finish in time).
+// Allowed ranges: up to 25 study hours per week and 25 weeks (about half a year).
+// This keeps plans realistic and small enough for free AI models to finish in time.
+// (Tested: a 24-week plan takes about 25 s; a 52-week plan took 43 s, too close to the 55 s limit.)
 const LIMITS = {
   hours: { min: 1, max: 25, label: 'Hours per week' },
-  weeks: { min: 1, max: 24, label: 'Number of weeks' },
+  weeks: { min: 1, max: 25, label: 'Number of weeks' },
 };
 
 // Check one number field. Shows a message under the field and returns the number,
 // or null if it is invalid. We never silently change what the student typed.
-function checkNumber(input, errorEl, { min, max, label }) {
+function checkNumber(input, errorEl, { min, max, label }, { allowEmpty = false } = {}) {
   const raw = input.value.trim();
   const n = Number(raw);
   let msg = '';
-  if (raw === '') msg = `Please enter ${label.toLowerCase()}.`;
+  // The browser reports half-typed or invalid number text (like "1e") as empty with badInput.
+  if (input.validity?.badInput) msg = `${label} must be a whole number.`;
+  else if (raw === '') msg = allowEmpty ? '' : `Please enter ${label.toLowerCase()}.`;
   else if (!Number.isInteger(n)) msg = `${label} must be a whole number.`;
   else if (n < min || n > max) msg = `${label} must be between ${min} and ${max} (you entered ${n}).`;
   errorEl.textContent = msg;

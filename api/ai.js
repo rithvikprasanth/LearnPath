@@ -147,7 +147,7 @@ async function callOpenRouter(messages, models, timeoutMs) {
         models, // fallback list: if one model is busy, OpenRouter tries the next
         messages,
         temperature: 0.4,
-        max_tokens: 6000, // enough for a 24-week plan
+        max_tokens: 6000, // enough for a 25-week plan
         // Turn off "thinking": it doubled the time and used up the token budget, which cut
         // long roadmaps off mid-JSON. (Docs: openrouter.ai/docs -> Reasoning Tokens.)
         // Only use models whose reasoning is NOT mandatory (see README).

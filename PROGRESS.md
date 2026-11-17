@@ -31,6 +31,7 @@ Phase 4: polish pass and final README (see git log)
 - Planned blocks whose end time has passed are marked "missed" when the Focus Blocks page opens.
 - Streak = consecutive days (ending today or yesterday) with a focus session or a completed page.
 - Export = all stores except `materials` (PDFs); Import replaces those stores and keeps PDFs.
+- Roadmap form limits: 1-25 hours/week and 1-25 weeks (about half a year), at the user's request. Values are checked while typing (too-high/invalid shows a message at once; empty is flagged on Generate) and are never changed silently. Fields start empty with placeholders. A 52-week test took 43 s (too close to the 55 s limit), so 25 weeks is the safe maximum.
 - CLAUDE.md and .claude/ are not committed (they're the local brief, not app code).
 
 ## Known issues
