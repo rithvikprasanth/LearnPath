@@ -21,15 +21,16 @@ function fail(res, status, error, message) {
   send(res, status, { ok: false, error, message });
 }
 
-// Models come from the OPENROUTER_MODELS env var (comma-separated).
-// "openrouter/free" (the free-models router) is always the last fallback.
+// Models come from the OPENROUTER_MODELS env var (comma-separated, in order of preference).
+// Only FREE models are allowed: ids ending in ":free" (or the "openrouter/free" router).
+// We do not add "openrouter/free" automatically: in testing it picked tiny models that
+// returned empty answers, so it is only used if you list it yourself.
 function getModels() {
   const list = (process.env.OPENROUTER_MODELS || '')
     .split(',')
     .map((m) => m.trim())
-    .filter((m) => m && !m.includes('your') && m !== 'openrouter/free');
-  // Keep it short: two chosen models + the free router.
-  return [...list.slice(0, 2), 'openrouter/free'];
+    .filter((m) => m.endsWith(':free') || m === 'openrouter/free');
+  return list.length ? list.slice(0, 3) : ['openrouter/free'];
 }
 
 // Pull a JSON object out of a model reply (models sometimes add ```json fences or text).
@@ -101,10 +102,14 @@ function validateQuiz(obj) {
   return questions.length >= 2 ? { questions } : null;
 }
 
-function parseReply(action, text) {
-  if (action === 'roadmap') return validateRoadmap(extractJson(text));
-  if (action === 'quiz') return validateQuiz(extractJson(text));
-  return validateExplain(text);
+function parseReply(action, text, model) {
+  let data;
+  if (action === 'roadmap') data = validateRoadmap(extractJson(text));
+  else if (action === 'quiz') data = validateQuiz(extractJson(text));
+  else data = validateExplain(text);
+  // Log unreadable replies (model name + length only, never the key) to help debugging.
+  if (!data) console.error(`[api/ai] unreadable ${action} reply from ${model}: ${String(text || '').length} chars`);
+  return data;
 }
 
 // ---------- mock mode (local testing only: set AI_MOCK=1 in .env) ----------
@@ -142,7 +147,7 @@ async function callOpenRouter(messages, models, timeoutMs) {
         models, // fallback list: if one model is busy, OpenRouter tries the next
         messages,
         temperature: 0.4,
-        max_tokens: 2500,
+        max_tokens: 4000, // room for "thinking" models to reason and still finish the JSON
       }),
     });
     const data = await response.json().catch(() => ({}));
@@ -201,7 +206,7 @@ export default async function handler(req, res) {
   // First try.
   let result = await callOpenRouter(messages, models, TIME_BUDGET_MS);
   if (result.error) return fail(res, STATUS[result.error], result.error, FRIENDLY[result.error]);
-  let data = parseReply(action, result.text);
+  let data = parseReply(action, result.text, result.model);
 
   // Retry once if the shape was wrong (and there is time left).
   const left = TIME_BUDGET_MS - (Date.now() - started);
@@ -209,7 +214,7 @@ export default async function handler(req, res) {
     const retryMessages = [...messages, { role: 'assistant', content: result.text.slice(0, 6000) }, { role: 'user', content: RETRY_REMINDER }];
     result = await callOpenRouter(retryMessages, models, left);
     if (result.error) return fail(res, STATUS[result.error], result.error, FRIENDLY[result.error]);
-    data = parseReply(action, result.text);
+    data = parseReply(action, result.text, result.model);
   }
 
   if (!data) return fail(res, 502, 'bad_output', FRIENDLY.bad_output);
