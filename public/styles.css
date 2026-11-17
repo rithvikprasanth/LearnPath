@@ -310,6 +310,8 @@ svg { flex-shrink: 0; }
 .switch input:checked + .switch-track::after { transform: translateX(16px); }
 .switch input:focus-visible + .switch-track { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
 .form-grid { display: grid; gap: var(--space-4); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* If one label wraps onto two lines, keep the input boxes in a row level with each other. */
+.form-grid .field > .label { min-height: calc(var(--leading) * 1em); display: flex; flex-wrap: wrap; align-items: flex-end; column-gap: var(--space-1); flex: 1; }
 
 /* Tabs (segmented style) */
 .tabs { display: inline-flex; gap: var(--space-1); padding: var(--space-1); background: var(--surface-2); border-radius: var(--radius); }

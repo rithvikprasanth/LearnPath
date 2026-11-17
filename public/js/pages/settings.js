@@ -4,7 +4,7 @@ import { getAll, putMany, clear, clearAll, STORE_NAMES, storageEstimate } from '
 import { getSetting, setSetting, getTheme, setTheme, clearSettingsCache, LANGUAGE_OPTIONS, POMODORO_LIMITS } from '../settings.js';
 import { aiRequestsLeft, DAILY_LIMIT } from '../ai-client.js';
 import { icon } from '../icons.js';
-import { toast, confirmModal, formatBytes, dateKey, setLoading, checkNumberField, $ } from '../ui.js';
+import { esc, toast, confirmModal, formatBytes, dateKey, setLoading, checkNumberField, $ } from '../ui.js';
 
 // Exported stores: everything except the PDF files themselves.
 const EXPORT_STORES = STORE_NAMES.filter((s) => s !== 'materials');
@@ -31,8 +31,9 @@ export async function render(root) {
               ${numField('long', 'Long break', pomo.long, 'min')}
               ${numField('cyclesBeforeLong', 'Long break after', pomo.cyclesBeforeLong, '')}
             </div>
+            <p class="small" id="pomo-summary" aria-live="polite"></p>
             <div class="row"><button class="btn btn-primary" type="submit">Save durations</button>
-              <button class="btn btn-ghost" type="button" id="pomo-default">Use 25 / 5 / 15</button></div>
+              <button class="btn btn-ghost" type="button" id="pomo-default" title="Back to 25 min focus, 5 min short break, 15 min long break, long break after 4">Reset to default</button></div>
           </form>
         </section>
 
@@ -93,7 +94,20 @@ export async function render(root) {
   // Pomodoro durations
   const form = $('#pomo-form', page);
   const checkPomo = (key, opts) => checkNumberField(form.elements[key], $(`#pf-${key}-error`, form), POMODORO_LIMITS[key], opts);
-  Object.keys(POMODORO_LIMITS).forEach((key) => form.elements[key].addEventListener('input', () => checkPomo(key, { allowEmpty: true })));
+  // Live summary under the boxes: shows exactly what the boxes say right now, and whether it is saved.
+  const summary = $('#pomo-summary', form);
+  let saved = { ...pomo };
+  function updateSummary() {
+    const v = Object.fromEntries(Object.keys(POMODORO_LIMITS).map((k) => [k, form.elements[k].value.trim() || '?']));
+    const isSaved = Object.keys(POMODORO_LIMITS).every((k) => String(saved[k]) === v[k]);
+    summary.innerHTML = `<strong>${esc(v.focus)} min</strong> focus · <strong>${esc(v.short)} min</strong> short break · <strong>${esc(v.long)} min</strong> long break · long break after <strong>${esc(v.cyclesBeforeLong)}</strong>
+      <span class="badge ${isSaved ? 'badge-success' : 'badge-warning'}">${isSaved ? 'Saved' : 'Not saved yet'}</span>`;
+  }
+  updateSummary();
+  Object.keys(POMODORO_LIMITS).forEach((key) => form.elements[key].addEventListener('input', () => {
+    checkPomo(key, { allowEmpty: true });
+    updateSummary();
+  }));
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const values = {};
@@ -104,6 +118,8 @@ export async function render(root) {
     }
     if (firstBad) return firstBad.focus();
     await setSetting('pomodoro', { ...(await getSetting('pomodoro')), ...values });
+    saved = { ...saved, ...values };
+    updateSummary();
     toast(`Pomodoro lengths saved: ${values.focus} min focus, ${values.short} min short break, ${values.long} min long break. The timer is updated straight away.`, 'success');
   });
   $('#pomo-default', page).addEventListener('click', () => {
