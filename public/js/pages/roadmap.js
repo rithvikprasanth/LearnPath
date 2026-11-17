@@ -5,7 +5,7 @@ import { pathProgress } from '../progress.js';
 import { startFocusFor } from '../timer.js';
 import { navigate, refresh } from '../router.js';
 import { icon } from '../icons.js';
-import { esc, openModal, confirmModal, toast, progressBar, emptyState, setLoading, clampPct, skeleton, $ } from '../ui.js';
+import { esc, openModal, confirmModal, toast, progressBar, emptyState, setLoading, clampPct, skeleton, checkNumberField, $ } from '../ui.js';
 
 const LEVELS = [
   ['beginner', 'Beginner'],
@@ -210,8 +210,8 @@ async function openCreateForm() {
   const form = $('#roadmap-form', modal.el);
   // Check hours and weeks while the student types, so a too-high value is flagged at once.
   // (An empty field is only flagged when they click Generate.)
-  form.hours.addEventListener('input', () => checkNumber(form.hours, $('#rf-hours-error', modal.el), LIMITS.hours, { allowEmpty: true }));
-  form.weeks.addEventListener('input', () => checkNumber(form.weeks, $('#rf-weeks-error', modal.el), LIMITS.weeks, { allowEmpty: true }));
+  form.hours.addEventListener('input', () => checkNumberField(form.hours, $('#rf-hours-error', modal.el), LIMITS.hours, { allowEmpty: true }));
+  form.weeks.addEventListener('input', () => checkNumberField(form.weeks, $('#rf-weeks-error', modal.el), LIMITS.weeks, { allowEmpty: true }));
   form.addEventListener('submit', (e) => e.preventDefault());
   form.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && e.target.matches('input')) {
@@ -229,31 +229,14 @@ const LIMITS = {
   weeks: { min: 1, max: 25, label: 'Number of weeks' },
 };
 
-// Check one number field. Shows a message under the field and returns the number,
-// or null if it is invalid. We never silently change what the student typed.
-function checkNumber(input, errorEl, { min, max, label }, { allowEmpty = false } = {}) {
-  const raw = input.value.trim();
-  const n = Number(raw);
-  let msg = '';
-  // The browser reports half-typed or invalid number text (like "1e") as empty with badInput.
-  if (input.validity?.badInput) msg = `${label} must be a whole number.`;
-  else if (raw === '') msg = allowEmpty ? '' : `Please enter ${label.toLowerCase()}.`;
-  else if (!Number.isInteger(n)) msg = `${label} must be a whole number.`;
-  else if (n < min || n > max) msg = `${label} must be between ${min} and ${max} (you entered ${n}).`;
-  errorEl.textContent = msg;
-  errorEl.hidden = !msg;
-  input.setAttribute('aria-invalid', String(!!msg));
-  return msg ? null : n;
-}
-
 function readForm(el) {
   const form = $('#roadmap-form', el);
   const goal = form.goal.value.trim();
   const goalOk = goal.length >= 3;
   $('#rf-goal-error', el).hidden = goalOk;
   form.goal.setAttribute('aria-invalid', String(!goalOk));
-  const hoursPerWeek = checkNumber(form.hours, $('#rf-hours-error', el), LIMITS.hours);
-  const weeks = checkNumber(form.weeks, $('#rf-weeks-error', el), LIMITS.weeks);
+  const hoursPerWeek = checkNumberField(form.hours, $('#rf-hours-error', el), LIMITS.hours);
+  const weeks = checkNumberField(form.weeks, $('#rf-weeks-error', el), LIMITS.weeks);
 
   // Focus the first field with a problem.
   const firstBad = [goalOk ? null : form.goal, hoursPerWeek === null ? form.hours : null, weeks === null ? form.weeks : null].find(Boolean);

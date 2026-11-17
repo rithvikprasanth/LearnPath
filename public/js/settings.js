@@ -9,6 +9,14 @@ export const DEFAULTS = {
   aiUsage: { date: '', count: 0 },
 };
 
+// Allowed Pomodoro lengths (minutes), used by the Pomodoro page and Settings.
+export const POMODORO_LIMITS = {
+  focus: { min: 1, max: 120, label: 'Focus' },
+  short: { min: 1, max: 60, label: 'Short break' },
+  long: { min: 1, max: 60, label: 'Long break' },
+  cyclesBeforeLong: { min: 2, max: 8, label: 'Sessions before a long break' },
+};
+
 export const LANGUAGE_OPTIONS = [
   ['en', 'English'],
   ['hi', 'Hindi (हिन्दी)'],

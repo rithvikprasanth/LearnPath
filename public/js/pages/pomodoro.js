@@ -1,10 +1,19 @@
 // Pomodoro page: big countdown ring, controls, session dots, topic link and today's sessions.
 import { getAllByIndex, get } from '../db.js';
 import { getActivePath } from '../progress.js';
-import { getSetting, setSetting } from '../settings.js';
+import { getSetting, setSetting, POMODORO_LIMITS } from '../settings.js';
 import { subscribe, toggle, skip, reset, setTopic, getTimer } from '../timer.js';
 import { icon } from '../icons.js';
-import { esc, ring, setRing, formatClock, formatMinutes, dateKey, emptyState, toast, $ } from '../ui.js';
+import { esc, ring, setRing, formatClock, formatMinutes, dateKey, emptyState, toast, checkNumberField, $ } from '../ui.js';
+
+// Quick presets: [label, focus, short break, long break]
+const PRESETS = [
+  ['25 / 5', 25, 5, 15],
+  ['45 / 10', 45, 10, 20],
+  ['50 / 10', 50, 10, 30],
+  ['90 / 20', 90, 20, 30],
+];
+const LENGTH_KEYS = ['focus', 'short', 'long', 'cyclesBeforeLong'];
 
 export async function render(root) {
   const active = await getActivePath();
@@ -43,13 +52,30 @@ export async function render(root) {
 
       <aside class="stack">
         <div class="card">
+          <div class="card-header"><h2>Timer lengths</h2><span class="xs muted">minutes</span></div>
+          <form class="stack" id="pomo-lengths" novalidate>
+            <div class="row wrap" role="group" aria-label="Quick presets">
+              ${PRESETS.map(([label, f, s, l]) => `<button type="button" class="btn btn-secondary btn-sm" data-preset="${f},${s},${l}" aria-label="Preset: ${f} minutes focus, ${s} minutes break">${label}</button>`).join('')}
+            </div>
+            <div class="form-grid">
+              ${lengthField('focus', 'Focus', prefs.focus)}
+              ${lengthField('short', 'Short break', prefs.short)}
+              ${lengthField('long', 'Long break', prefs.long)}
+              ${lengthField('cyclesBeforeLong', 'Long break after', prefs.cyclesBeforeLong, 'sessions', true)}
+            </div>
+            <div class="row-between">
+              <span class="xs muted" id="pomo-lengths-note" aria-live="polite"></span>
+              <button type="submit" class="btn btn-primary btn-sm">Save lengths</button>
+            </div>
+          </form>
+        </div>
+        <div class="card">
           <div class="card-header"><h2>Today</h2><span class="badge badge-accent" id="today-total">0 min</span></div>
           <div id="today-list"></div>
         </div>
         <div class="card">
-          <div class="card-header"><h2>Options</h2><a class="small" href="#/settings">Durations</a></div>
+          <div class="card-header"><h2>Options</h2></div>
           <div class="stack-sm">
-            <p class="small muted">${prefs.focus} min focus · ${prefs.short} min short break · ${prefs.long} min long break · long break after ${prefs.cyclesBeforeLong}</p>
             ${switchRow('autoStart', 'Auto-start next phase', prefs.autoStart)}
             ${switchRow('sound', 'Sound at phase end', prefs.sound)}
             ${switchRow('notify', 'Browser notification', prefs.notify)}
@@ -74,7 +100,7 @@ export async function render(root) {
   let lastKey = '';
   const unsubscribe = subscribe((s) => {
     setRing(els.ring, s.fraction);
-    const key = `${s.status}|${s.phase}|${s.cycle}|${Math.ceil(s.remaining / 1000)}`;
+    const key = `${s.status}|${s.phase}|${s.cycle}|${s.cyclesBeforeLong}|${Math.ceil(s.remaining / 1000)}`;
     if (key === lastKey) return;
     lastKey = key;
     els.card.className = `card pomo-main phase-${s.phase}`;
@@ -116,6 +142,45 @@ export async function render(root) {
     await setSetting('pomodoro', { ...current, [key]: value });
   });
 
+  // ---- Timer lengths: the student chooses them (checked while typing) ----
+  const lengthsForm = $('#pomo-lengths', page);
+  const note = $('#pomo-lengths-note', page);
+  const check = (key, opts) => checkNumberField(lengthsForm.elements[key], $(`#pl-${key}-error`, page), POMODORO_LIMITS[key], opts);
+  LENGTH_KEYS.forEach((key) => lengthsForm.elements[key].addEventListener('input', () => {
+    check(key, { allowEmpty: true });
+    note.textContent = 'Not saved yet';
+  }));
+
+  async function saveLengths() {
+    const values = {};
+    let firstBad = null;
+    for (const key of LENGTH_KEYS) {
+      values[key] = check(key);
+      if (values[key] === null && !firstBad) firstBad = lengthsForm.elements[key];
+    }
+    if (firstBad) {
+      firstBad.focus();
+      note.textContent = '';
+      return;
+    }
+    await setSetting('pomodoro', { ...(await getSetting('pomodoro')), ...values });
+    // The timer picks up new lengths straight away when idle; a running/paused phase keeps its length.
+    const busy = getTimer().status !== 'idle';
+    note.textContent = 'Saved';
+    toast(busy ? 'Saved. The current session keeps its length; the new lengths start from the next phase.' : `Saved: ${values.focus} min focus, ${values.short} min short break, ${values.long} min long break.`, 'success');
+  }
+  lengthsForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    saveLengths();
+  });
+  lengthsForm.addEventListener('click', (e) => {
+    const preset = e.target.closest('[data-preset]');
+    if (!preset) return;
+    const [f, s, l] = preset.dataset.preset.split(',');
+    Object.entries({ focus: f, short: s, long: l }).forEach(([k, v]) => (lengthsForm.elements[k].value = v));
+    saveLengths();
+  });
+
   // Keyboard shortcuts (ignored while typing in a field).
   function onKey(e) {
     if (e.target.closest('input, select, textarea, button, [contenteditable]') || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -138,6 +203,21 @@ export async function render(root) {
     document.removeEventListener('keydown', onKey);
     window.removeEventListener('pomodoro-phase-end', loadToday);
   };
+}
+
+// One number box. `rangeInUnit` puts "(2-8)" next to the unit instead of the label,
+// for labels that are too long to fit with it on one line.
+function lengthField(key, label, value, unit = 'min', rangeInUnit = false) {
+  const { min, max } = POMODORO_LIMITS[key];
+  const range = `(${min}-${max})`;
+  return `<div class="field">
+    <label class="label" for="pl-${key}">${label}${rangeInUnit ? '' : ` <span class="label-hint">${range}</span>`}</label>
+    <div class="input-unit">
+      <input class="input" type="number" id="pl-${key}" name="${key}" min="${min}" max="${max}" step="1" value="${value}" required aria-describedby="pl-${key}-error">
+      <span class="xs muted nowrap" ${rangeInUnit ? '' : 'aria-hidden="true"'}>${unit}${rangeInUnit ? ` ${range}` : ''}</span>
+    </div>
+    <span class="field-error" id="pl-${key}-error" hidden></span>
+  </div>`;
 }
 
 function switchRow(key, label, checked) {

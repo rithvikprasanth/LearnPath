@@ -1,10 +1,10 @@
 // Settings: Pomodoro durations, theme, AI language, accessibility, data export/import/reset,
 // storage used, and the About / societal impact card.
 import { getAll, putMany, clear, clearAll, STORE_NAMES, storageEstimate } from '../db.js';
-import { getSetting, setSetting, getTheme, setTheme, clearSettingsCache, LANGUAGE_OPTIONS } from '../settings.js';
+import { getSetting, setSetting, getTheme, setTheme, clearSettingsCache, LANGUAGE_OPTIONS, POMODORO_LIMITS } from '../settings.js';
 import { aiRequestsLeft, DAILY_LIMIT } from '../ai-client.js';
 import { icon } from '../icons.js';
-import { toast, confirmModal, formatBytes, dateKey, setLoading, $ } from '../ui.js';
+import { toast, confirmModal, formatBytes, dateKey, setLoading, checkNumberField, $ } from '../ui.js';
 
 // Exported stores: everything except the PDF files themselves.
 const EXPORT_STORES = STORE_NAMES.filter((s) => s !== 'materials');
@@ -26,12 +26,11 @@ export async function render(root) {
           <div class="card-header"><h2 id="s-pomo">Pomodoro</h2></div>
           <form class="stack" id="pomo-form" novalidate>
             <div class="form-grid">
-              ${numField('focus', 'Focus (minutes)', pomo.focus, 1, 120)}
-              ${numField('short', 'Short break (minutes)', pomo.short, 1, 60)}
-              ${numField('long', 'Long break (minutes)', pomo.long, 1, 90)}
-              ${numField('cyclesBeforeLong', 'Long break after (sessions)', pomo.cyclesBeforeLong, 2, 8)}
+              ${numField('focus', 'Focus', pomo.focus, 'min')}
+              ${numField('short', 'Short break', pomo.short, 'min')}
+              ${numField('long', 'Long break', pomo.long, 'min')}
+              ${numField('cyclesBeforeLong', 'Long break after', pomo.cyclesBeforeLong, '')}
             </div>
-            <span class="field-error" id="pomo-error" hidden></span>
             <div class="row"><button class="btn btn-primary" type="submit">Save durations</button>
               <button class="btn btn-ghost" type="button" id="pomo-default">Use 25 / 5 / 15</button></div>
           </form>
@@ -93,21 +92,19 @@ export async function render(root) {
 
   // Pomodoro durations
   const form = $('#pomo-form', page);
+  const checkPomo = (key, opts) => checkNumberField(form.elements[key], $(`#pf-${key}-error`, form), POMODORO_LIMITS[key], opts);
+  Object.keys(POMODORO_LIMITS).forEach((key) => form.elements[key].addEventListener('input', () => checkPomo(key, { allowEmpty: true })));
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const values = {};
-    let error = '';
-    for (const input of form.querySelectorAll('input')) {
-      const n = Number(input.value);
-      if (!Number.isInteger(n) || n < Number(input.min) || n > Number(input.max)) error = `${input.dataset.label} must be a whole number from ${input.min} to ${input.max}.`;
-      values[input.name] = n;
+    let firstBad = null;
+    for (const key of Object.keys(POMODORO_LIMITS)) {
+      values[key] = checkPomo(key);
+      if (values[key] === null && !firstBad) firstBad = form.elements[key];
     }
-    const err = $('#pomo-error', form);
-    err.textContent = error;
-    err.hidden = !error;
-    if (error) return;
+    if (firstBad) return firstBad.focus();
     await setSetting('pomodoro', { ...(await getSetting('pomodoro')), ...values });
-    toast('Pomodoro durations saved. They apply to the next phase.', 'success');
+    toast('Pomodoro lengths saved. A session that is already running keeps its length.', 'success');
   });
   $('#pomo-default', page).addEventListener('click', () => {
     Object.entries({ focus: 25, short: 5, long: 15, cyclesBeforeLong: 4 }).forEach(([k, v]) => (form.elements[k].value = v));
@@ -199,9 +196,11 @@ export async function render(root) {
   return () => window.removeEventListener('theme-changed', syncTheme);
 }
 
-function numField(name, label, value, min, max) {
-  return `<div class="field"><label class="label" for="pf-${name}">${label}</label>
-    <input class="input" type="number" id="pf-${name}" name="${name}" data-label="${label}" min="${min}" max="${max}" step="1" value="${value}" required></div>`;
+function numField(name, label, value, unit) {
+  const { min, max } = POMODORO_LIMITS[name];
+  return `<div class="field"><label class="label" for="pf-${name}">${label} <span class="label-hint">(${min}-${max}${unit ? ` ${unit}` : ''})</span></label>
+    <input class="input" type="number" id="pf-${name}" name="${name}" min="${min}" max="${max}" step="1" value="${value}" required aria-describedby="pf-${name}-error">
+    <span class="field-error" id="pf-${name}-error" hidden></span></div>`;
 }
 
 function switchRow(key, label, hint, checked) {

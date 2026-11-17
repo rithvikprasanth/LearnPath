@@ -222,3 +222,24 @@ export function alertBox(message, type = 'info') {
   const ic = type === 'success' ? 'checkCircle' : type === 'info' ? 'info' : 'alert';
   return `<div class="alert alert-${type}" role="${type === 'error' ? 'alert' : 'status'}">${icon(ic)}<div>${esc(message)}</div></div>`;
 }
+
+// ---------- number field check (used by every form with numbers) ----------
+// Checks one <input type="number">. Shows a message in errorEl and returns the number,
+// or null if invalid. Never changes what the student typed.
+// allowEmpty: true while typing (an empty box is only an error when the form is submitted).
+export function checkNumberField(input, errorEl, { min, max, label }, { allowEmpty = false } = {}) {
+  const raw = input.value.trim();
+  const n = Number(raw);
+  let msg = '';
+  // The browser reports half-typed or invalid number text (like "1e") as empty with badInput.
+  if (input.validity?.badInput) msg = `${label} must be a whole number.`;
+  else if (raw === '') msg = allowEmpty ? '' : `Please enter ${label.toLowerCase()}.`;
+  else if (!Number.isInteger(n)) msg = `${label} must be a whole number.`;
+  else if (n < min || n > max) msg = `${label} must be between ${min} and ${max} (you entered ${n}).`;
+  if (errorEl) {
+    errorEl.textContent = msg;
+    errorEl.hidden = !msg;
+  }
+  input.setAttribute('aria-invalid', String(!!msg));
+  return msg ? null : n;
+}
