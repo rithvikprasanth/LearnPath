@@ -173,7 +173,7 @@ async function openCreateForm() {
   const body = `<form class="stack" id="roadmap-form" novalidate>
     <div class="field">
       <label class="label" for="rf-goal">What do you want to learn?</label>
-      <input class="input" id="rf-goal" name="goal" required maxlength="200" placeholder="e.g. Class 12 Physics: Electrostatics, or Learn JavaScript basics">
+      <input class="input" id="rf-goal" name="goal" required maxlength="200" placeholder="e.g. Python for data analysis">
       <span class="field-error" id="rf-goal-error" hidden>Please describe your goal (at least 3 characters).</span>
     </div>
     <div class="grid-3">
@@ -182,15 +182,15 @@ async function openCreateForm() {
         <select class="select" id="rf-level" name="level">${LEVELS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
       </div>
       <div class="field">
-        <label class="label" for="rf-hours">Hours per week</label>
+        <label class="label" for="rf-hours">Hours per week <span class="label-hint">(${LIMITS.hours.min}-${LIMITS.hours.max})</span></label>
         <input class="input" id="rf-hours" name="hours" type="number" min="${LIMITS.hours.min}" max="${LIMITS.hours.max}" step="1" required
-          placeholder="e.g. 6 (max ${LIMITS.hours.max})" aria-describedby="rf-hours-error">
+          placeholder="e.g. 6" aria-describedby="rf-hours-error">
         <span class="field-error" id="rf-hours-error" hidden></span>
       </div>
       <div class="field">
-        <label class="label" for="rf-weeks">Number of weeks</label>
+        <label class="label" for="rf-weeks">Number of weeks <span class="label-hint">(${LIMITS.weeks.min}-${LIMITS.weeks.max})</span></label>
         <input class="input" id="rf-weeks" name="weeks" type="number" min="${LIMITS.weeks.min}" max="${LIMITS.weeks.max}" step="1" required
-          placeholder="e.g. 4 (max ${LIMITS.weeks.max})" aria-describedby="rf-weeks-error">
+          placeholder="e.g. 4" aria-describedby="rf-weeks-error">
         <span class="field-error" id="rf-weeks-error" hidden></span>
       </div>
     </div>
@@ -200,6 +200,7 @@ async function openCreateForm() {
   const modal = openModal({
     title: 'Create a roadmap',
     body,
+    wide: true,
     actions: [
       { label: 'Cancel', variant: 'secondary', value: null },
       { label: 'Generate roadmap', variant: 'primary', onClick: (btn, el) => submitForm(btn, el, modal) },
