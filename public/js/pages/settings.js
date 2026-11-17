@@ -104,7 +104,7 @@ export async function render(root) {
     }
     if (firstBad) return firstBad.focus();
     await setSetting('pomodoro', { ...(await getSetting('pomodoro')), ...values });
-    toast('Pomodoro lengths saved. A session that is already running keeps its length.', 'success');
+    toast(`Pomodoro lengths saved: ${values.focus} min focus, ${values.short} min short break, ${values.long} min long break. The timer is updated straight away.`, 'success');
   });
   $('#pomo-default', page).addEventListener('click', () => {
     Object.entries({ focus: 25, short: 5, long: 15, cyclesBeforeLong: 4 }).forEach(([k, v]) => (form.elements[k].value = v));

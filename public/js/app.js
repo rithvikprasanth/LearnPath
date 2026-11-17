@@ -52,18 +52,17 @@ async function renderQuota() {
 }
 
 // Small timer in the sidebar, visible while a session is running or paused.
+// Small timer at the bottom of the sidebar. Always visible, so a change to the
+// Pomodoro lengths (from any page) shows up straight away.
 function renderMiniTimer(t) {
   const el = $('#mini-timer');
-  if (t.status === 'idle') {
-    el.hidden = true;
-    return;
-  }
   el.hidden = false;
+  const state = t.status === 'paused' ? ' (paused)' : t.status === 'idle' ? ' (ready)' : '';
   el.className = `mini-timer phase-${t.phase}`;
-  el.innerHTML = `<span class="mini-timer-icon">${icon(t.status === 'running' ? 'timer' : 'pause')}</span>
-    <span class="grow">${t.label}${t.status === 'paused' ? ' (paused)' : ''}</span>
+  el.innerHTML = `<span class="mini-timer-icon">${icon(t.status === 'running' ? 'timer' : t.status === 'paused' ? 'pause' : 'play')}</span>
+    <span class="grow">${t.label}${state}</span>
     <span class="time">${formatClock(t.remaining)}</span>`;
-  el.setAttribute('aria-label', `${t.label} ${formatClock(t.remaining)} remaining. Open Pomodoro`);
+  el.setAttribute('aria-label', `${t.label}${state}, ${formatClock(t.remaining)}. Open Pomodoro`);
 }
 
 async function main() {

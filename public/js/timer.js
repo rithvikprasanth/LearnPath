@@ -269,9 +269,31 @@ export async function initTimer() {
   document.addEventListener('visibilitychange', check);
   window.addEventListener('settings-changed', (e) => {
     if (e.detail.key !== 'pomodoro') return;
+    const oldLength = state.lengthMs || durationFor(state.phase);
     settings = e.detail.value;
-    if (state.status === 'idle') state.remainingMs = state.lengthMs = durationFor(state.phase);
+    applyNewLength(oldLength);
     save();
     emit();
   });
+}
+
+// When the student changes the lengths, update the CURRENT phase too (so the change is
+// visible straight away in the ring and the sidebar timer), keeping the time already done.
+// Example: 5 min into a 25 min focus, change focus to 30 -> 25 min left.
+// If the new length is shorter than the time already done, the phase ends normally.
+function applyNewLength(oldLength) {
+  const newLength = durationFor(state.phase);
+  if (newLength === oldLength && state.lengthMs) return;
+  if (state.status === 'idle') {
+    state.remainingMs = state.lengthMs = newLength;
+    return;
+  }
+  const elapsed = Math.max(0, oldLength - remainingMs());
+  const left = Math.max(0, newLength - elapsed);
+  state.lengthMs = newLength;
+  if (state.status === 'running') state.endsAt = Date.now() + left; // the 250 ms check ends the phase if left is 0
+  else {
+    state.remainingMs = left; // paused: shows the new time; Resume continues from here
+    if (left === 0) setTimeout(() => completePhase(true), 0); // already studied the new length: finish it
+  }
 }

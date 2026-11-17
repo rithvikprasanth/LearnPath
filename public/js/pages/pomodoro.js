@@ -164,10 +164,10 @@ export async function render(root) {
       return;
     }
     await setSetting('pomodoro', { ...(await getSetting('pomodoro')), ...values });
-    // The timer picks up new lengths straight away when idle; a running/paused phase keeps its length.
+    // The timer applies the new lengths straight away, including a running or paused session.
     const busy = getTimer().status !== 'idle';
     note.textContent = 'Saved';
-    toast(busy ? 'Saved. The current session keeps its length; the new lengths start from the next phase.' : `Saved: ${values.focus} min focus, ${values.short} min short break, ${values.long} min long break.`, 'success');
+    toast(`Saved: ${values.focus} min focus, ${values.short} min short break, ${values.long} min long break.${busy ? ' The current timer was updated too (time already studied is kept).' : ''}`, 'success');
   }
   lengthsForm.addEventListener('submit', (e) => {
     e.preventDefault();
