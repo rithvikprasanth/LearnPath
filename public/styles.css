@@ -480,6 +480,8 @@ svg { flex-shrink: 0; }
   border-radius: var(--radius); transition: background var(--fast) var(--ease);
 }
 .topic:hover { background: var(--surface-2); }
+.topic-check { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+.topic-label { display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
 .topic-title { font-size: var(--text-sm); font-weight: 500; }
 .topic.is-done .topic-title { color: var(--text-muted); text-decoration: line-through; }
 .topic-meta { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
@@ -492,6 +494,8 @@ svg { flex-shrink: 0; }
 .pomo-phase { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: 600; font-size: var(--text-sm); text-transform: uppercase; letter-spacing: 0.06em; color: var(--phase-color, var(--accent)); }
 .pomo-ring .ring-fill { stroke: var(--phase-color, var(--accent)); }
 .pomo-ring .ring-value { font-size: var(--text-display); font-weight: 600; }
+.pomo-controls .btn-lg { min-width: 160px; }
+.pomo-topic-field { width: 100%; max-width: 420px; }
 .pomo-controls { display: flex; gap: var(--space-3); align-items: center; }
 .session-dots { display: flex; gap: var(--space-2); align-items: center; }
 .session-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); transition: background var(--normal) var(--ease); }

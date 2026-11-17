@@ -3,16 +3,34 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="LearnPath: a free, private, AI-powered study planner. Your data stays in your browser.">
   <title>LearnPath</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%234f46e5'/%3E%3Cpath d='M5 17l4-4 3 3 6-7' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <!-- Apply the saved theme before the page paints (avoids a flash of the wrong theme) -->
+  <script>
+    try { if (localStorage.getItem('lp-theme') === 'dark') document.documentElement.dataset.theme = 'dark'; } catch (e) {}
+  </script>
   <link rel="stylesheet" href="styles.css">
+  <script src="vendor/chart.umd.min.js" defer></script>
+  <script type="module" src="js/app.js"></script>
 </head>
 <body>
-  <main class="page">
-    <div class="card stack">
-      <h1>LearnPath</h1>
-      <p class="muted">Phase 0 setup is complete. The app shell arrives in Phase 1.</p>
-      <div class="row"><button class="btn btn-primary">Primary</button><button class="btn btn-secondary">Secondary</button><span class="badge badge-success">Ready</span></div>
-    </div>
-  </main>
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div class="app">
+    <aside class="sidebar" aria-label="Main navigation">
+      <a class="brand" href="#/dashboard" aria-label="LearnPath home">
+        <span class="brand-mark" id="brand-mark"></span>
+        <span class="brand-name">LearnPath</span>
+      </a>
+      <nav class="nav" id="nav"></nav>
+      <div class="sidebar-footer">
+        <a class="mini-timer" id="mini-timer" href="#/pomodoro" hidden></a>
+        <p class="ai-quota xs muted" id="ai-quota" aria-live="polite"></p>
+        <button class="btn btn-ghost btn-block" id="theme-toggle" type="button"></button>
+      </div>
+    </aside>
+    <main class="main" id="main" tabindex="-1"></main>
+  </div>
+  <noscript><div class="page"><div class="alert alert-warning">LearnPath needs JavaScript to run.</div></div></noscript>
 </body>
 </html>
