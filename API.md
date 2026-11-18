@@ -8,7 +8,7 @@ All study data lives in the browser (IndexedDB database `learnpath`, version 1).
 |---|---|---|---|
 | `paths` | `id` | none | `id, title, goal, level, hoursPerWeek, weeks, language ('en'), weekInfo[{week,title,focus}], active (bool), source ('ai'; older data may say 'sample'), createdAt` |
 | `topics` | `id` | `pathId` | `id, pathId, week, order, title, description, estHours, done (bool), doneAt` |
-| `materials` | `id` | `topicId`, `pathId` | `id, topicId, pathId, name, size, type, blob (PDF Blob), totalPages, createdAt` |
+| `materials` | `id` | `topicId`, `pathId` | `id, topicId, pathId` (both `null` for general reading with no topic), `name, size, type, blob (PDF Blob), totalPages, createdAt` |
 | `page_progress` | `id` (`materialId:page`) | `materialId` | `id, materialId, page, seconds, completed (bool, after 5 s dwell), visitedAt` |
 | `pomodoro_sessions` | `id` | `topicId`, `startedAt` | `id, topicId, pathId, blockId, phase ('focus'), startedAt, endedAt, minutes, completed (bool)` |
 | `focus_blocks` | `id` | `date` | `id, date ('YYYY-MM-DD'), start ('HH:MM'), duration (min), topicId, status ('planned','done','missed'), createdAt` |

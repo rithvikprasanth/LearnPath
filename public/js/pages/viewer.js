@@ -18,7 +18,7 @@ export async function render(root, { param, query }) {
       ${emptyState({ iconName: 'file', title: 'This PDF is not in this browser', text: 'It may have been deleted. PDFs are stored only on the device where you uploaded them.', action: `<a class="btn btn-primary" href="#/materials">Back to Study Material</a>` })}</div>`;
     return;
   }
-  const topic = await get('topics', material.topicId);
+  const topic = material.topicId ? await get('topics', material.topicId) : null; // null = general reading
   const language = await getSetting('language');
   const languageName = (LANGUAGE_OPTIONS.find(([v]) => v === language) || [, 'English'])[1];
 
@@ -74,7 +74,7 @@ export async function render(root, { param, query }) {
 
     <aside class="viewer-side" aria-label="Progress and Study Buddy">
       <div class="stack-sm">
-        <p class="xs muted">${esc(topic?.title || '')}</p>
+        <p class="xs muted">${esc(topic?.title || 'General reading (no topic)')}</p>
         <div id="v-progress"></div>
       </div>
       <div class="stack-sm">

@@ -1,5 +1,6 @@
-// Study Material page: upload PDFs to roadmap topics and see reading progress per file.
-import { getAllByIndex, put, del, delByIndex, get, uid } from '../db.js';
+// Study Material page: upload PDFs (to a roadmap topic, or as general reading with no topic)
+// and see reading progress per file.
+import { getAll, getAllByIndex, put, del, delByIndex, get, uid } from '../db.js';
 import { getActivePath, materialPercent } from '../progress.js';
 import { openPdf, looksLikePdf, closePdf } from '../pdf-loader.js';
 import { navigate, refresh } from '../router.js';
@@ -12,25 +13,20 @@ export async function render(root, { query }) {
   root.innerHTML = `<div class="page">${header()}<div class="card">${skeleton(4)}</div></div>`;
   // A topic link (from any roadmap) opens that topic's roadmap; otherwise use the active one.
   const linkedTopic = query.get('topic') ? await get('topics', query.get('topic')) : null;
+  // No roadmap is needed: without one, every PDF is general reading.
   const path = linkedTopic ? await get('paths', linkedTopic.pathId) : await getActivePath();
 
-  if (!path) {
-    root.innerHTML = `<div class="page">${header()}${emptyState({
-      iconName: 'book',
-      title: 'Create a roadmap first',
-      text: 'Study material is attached to the topics of your roadmap. Create a roadmap, then upload PDFs for each topic.',
-      action: `<a class="btn btn-primary" href="#/roadmap">${icon('map')}Go to Roadmap</a>`,
-    })}</div>`;
-    return;
-  }
-
-  const topics = (await getAllByIndex('topics', 'pathId', path.id)).sort((a, b) => a.week - b.week || a.order - b.order);
+  const topics = path ? (await getAllByIndex('topics', 'pathId', path.id)).sort((a, b) => a.week - b.week || a.order - b.order) : [];
   const topicFilter = query.get('topic') || '';
-  let materials = (await getAllByIndex('materials', 'pathId', path.id)).sort((a, b) => b.createdAt - a.createdAt);
+  // This roadmap's PDFs plus the general ones (no topic). General PDFs have no pathId,
+  // so they are not in the pathId index; read them from the full list.
+  const roadmapMaterials = path ? await getAllByIndex('materials', 'pathId', path.id) : [];
+  const generalMaterials = (await getAll('materials')).filter((m) => !m.topicId);
+  let materials = [...roadmapMaterials, ...generalMaterials].sort((a, b) => b.createdAt - a.createdAt);
   if (topicFilter) materials = materials.filter((m) => m.topicId === topicFilter);
   const percents = await Promise.all(materials.map((m) => materialPercent(m)));
   const lastPages = await Promise.all(materials.map(async (m) => (await get('settings', `reader:${m.id}`))?.value?.lastPage || 1));
-  const topicName = (id) => topics.find((t) => t.id === id)?.title || 'Unknown topic';
+  const topicName = (id) => (id ? topics.find((t) => t.id === id)?.title || 'Unknown topic' : 'General reading');
 
   const weeks = [...new Set(topics.map((t) => t.week))];
   const topicOptions = weeks
@@ -47,8 +43,12 @@ export async function render(root, { query }) {
         </div>
         <div class="grid-3">
           <div class="field">
-            <label class="label" for="up-topic">Topic</label>
-            <select class="select" id="up-topic">${topicOptions}</select>
+            <label class="label" for="up-topic">Topic <span class="label-hint">(optional)</span></label>
+            <select class="select" id="up-topic">
+              <option value="" ${topicFilter ? '' : 'selected'}>No topic (general reading)</option>
+              ${topicOptions}
+            </select>
+            <span class="hint">${path ? 'Link it to a topic to count it in your roadmap progress.' : 'Create a roadmap to link PDFs to topics.'}</span>
           </div>
           <div class="span-2">
             <label class="dropzone" id="dropzone" for="up-file">
@@ -79,7 +79,7 @@ export async function render(root, { query }) {
   const dropzone = $('#dropzone', page);
 
   fileInput.addEventListener('change', () => {
-    if (fileInput.files[0]) handleFile(fileInput.files[0], $('#up-topic', page).value, path.id, page);
+    if (fileInput.files[0]) handleFile(fileInput.files[0], $('#up-topic', page).value, path?.id, page);
     fileInput.value = '';
   });
   dropzone.addEventListener('dragover', (e) => {
@@ -91,7 +91,7 @@ export async function render(root, { query }) {
     e.preventDefault();
     dropzone.classList.remove('is-over');
     const file = e.dataTransfer.files[0];
-    if (file) handleFile(file, $('#up-topic', page).value, path.id, page);
+    if (file) handleFile(file, $('#up-topic', page).value, path?.id, page);
   });
 
   page.addEventListener('click', async (e) => {
@@ -118,7 +118,7 @@ function materialCard(m, pct, topicTitle, lastPage) {
       <div class="file-icon">${icon('file')}</div>
       <div class="grow">
         <h3 class="material-name">${esc(m.name)}</h3>
-        <p class="xs muted">${esc(topicTitle)} · ${m.totalPages} pages · ${formatBytes(m.size)}</p>
+        <p class="xs muted">${esc(topicTitle)} · ${m.totalPages} ${m.totalPages === 1 ? 'page' : 'pages'} · ${formatBytes(m.size)}</p>
       </div>
     </div>
     ${progressBar({ label: `Page ${lastPage} of ${m.totalPages}`, percent: pct, small: true })}
@@ -146,10 +146,6 @@ async function handleFile(file, topicId, pathId, page) {
     status.innerHTML = `<div class="alert alert-error" role="alert">${icon('alert')}<div>This PDF is ${formatBytes(file.size)}. The limit is 20 MB. Try splitting or compressing it.</div></div>`;
     return;
   }
-  if (!topicId) {
-    toast('Pick a topic first.', 'warning');
-    return;
-  }
 
   status.innerHTML = `<div class="alert" role="status">${icon('upload')}<div>Reading "${esc(name)}"...</div></div>`;
   try {
@@ -159,7 +155,8 @@ async function handleFile(file, topicId, pathId, page) {
     closePdf(pdf);
     const blob = new Blob([await file.arrayBuffer()], { type: 'application/pdf' });
     const id = uid();
-    await put('materials', { id, topicId, pathId, name, size: file.size, type: 'application/pdf', blob, totalPages, createdAt: Date.now() });
+    // No topic = general reading: topicId and pathId stay null, so it never counts toward a roadmap.
+    await put('materials', { id, topicId: topicId || null, pathId: topicId ? pathId : null, name, size: file.size, type: 'application/pdf', blob, totalPages, createdAt: Date.now() });
     toast(`"${name}" added (${totalPages} pages).`, 'success');
     navigate(`#/viewer/${id}`);
   } catch (err) {

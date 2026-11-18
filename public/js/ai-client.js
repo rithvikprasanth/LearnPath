@@ -1,12 +1,14 @@
 // ai-client.js: the browser side of the AI.
 // - Calls our own /api/ai (never OpenRouter directly; the key stays on the server)
 // - Caches every answer in IndexedDB, so the same page + action + language is never sent twice
-// - Limits each browser to DAILY_LIMIT requests per day (the free key is shared by everyone)
+// - Limits each browser to DAILY_LIMIT requests per day (the student can reset it in Settings)
 import { get, put } from './db.js';
 import { getSetting, setSetting } from './settings.js';
 import { dateKey } from './ui.js';
 
-export const DAILY_LIMIT = 15;
+import { PLAN } from './plan.js';
+
+export const DAILY_LIMIT = PLAN.dailyAiLimit;
 const CLIENT_TIMEOUT_MS = 62000; // a little longer than the server's 60 s limit
 
 // SHA-256 of a string as hex, used as a short cache key.
@@ -24,6 +26,12 @@ async function getUsage() {
 export async function aiRequestsLeft() {
   const usage = await getUsage();
   return Math.max(0, DAILY_LIMIT - usage.count);
+}
+
+// Settings -> "Reset AI usage": start today's count again from zero.
+export async function resetAiUsage() {
+  await setSetting('aiUsage', { date: dateKey(), count: 0 });
+  window.dispatchEvent(new Event('ai-usage-changed'));
 }
 
 async function countRequest() {
@@ -59,7 +67,7 @@ export async function askAI(action, input, language, { isRetry = false } = {}) {
 
   // 2. Daily limit for this browser.
   if (!isRetry && (await aiRequestsLeft()) <= 0) {
-    return { ok: false, error: 'daily_limit', message: `You have used all ${DAILY_LIMIT} AI requests for today. They reset tomorrow. Everything else still works.` };
+    return { ok: false, error: 'daily_limit', message: `You have used all ${DAILY_LIMIT} AI requests for today. They reset tomorrow, or you can reset them in Settings.` };
   }
 
   // 3. Call our server function.

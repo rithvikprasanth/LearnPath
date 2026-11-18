@@ -187,6 +187,8 @@ svg { flex-shrink: 0; }
 .mini-timer-icon svg { width: 18px; height: 18px; }
 .mini-timer .time { font-variant-numeric: tabular-nums; font-weight: 600; }
 .ai-quota { padding: 0 var(--space-2); }
+.plan-note { color: var(--warning); font-weight: 600; text-decoration: none; }
+.plan-note:hover { text-decoration: underline; color: var(--warning); }
 
 .main { flex: 1; margin-left: var(--sidebar-w); min-width: 0; }
 .page { max-width: var(--content-max); margin: 0 auto; padding: var(--space-6); }

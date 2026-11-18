@@ -2,7 +2,8 @@
 // storage used, and the About / societal impact card.
 import { getAll, putMany, clear, clearAll, STORE_NAMES, storageEstimate } from '../db.js';
 import { getSetting, setSetting, getTheme, setTheme, clearSettingsCache, LANGUAGE_OPTIONS, POMODORO_LIMITS } from '../settings.js';
-import { aiRequestsLeft, DAILY_LIMIT } from '../ai-client.js';
+import { aiRequestsLeft, resetAiUsage, DAILY_LIMIT } from '../ai-client.js';
+import { PLAN } from '../plan.js';
 import { icon } from '../icons.js';
 import { esc, toast, confirmModal, formatBytes, dateKey, setLoading, checkNumberField, $ } from '../ui.js';
 
@@ -45,11 +46,15 @@ export async function render(root) {
         </section>
 
         <section class="card" aria-labelledby="s-ai">
-          <div class="card-header"><h2 id="s-ai">AI language</h2><span class="badge">${icon('sparkles')}${aiLeft} / ${DAILY_LIMIT} left today</span></div>
+          <div class="card-header"><h2 id="s-ai">AI language</h2><span class="badge" id="s-ai-left">${icon('sparkles')}${aiLeft} / ${DAILY_LIMIT} left today</span></div>
           <div class="field">
-            <label class="label" for="s-language">Explanations, quizzes and new roadmaps in</label>
+            <label class="label" for="s-language">Study Buddy explanations and quizzes in</label>
             <select class="select" id="s-language">${LANGUAGE_OPTIONS.map(([v, l]) => `<option value="${v}" ${v === language ? 'selected' : ''}>${l}</option>`).join('')}</select>
             <span class="hint">English is the most reliable on free AI models. "Read aloud" uses your device's voices for the chosen language.</span>
+          </div>
+                  <div class="setting-row">
+            <div><p class="small strong">AI requests today</p><p class="xs muted" id="s-ai-used"></p></div>
+            <button class="btn btn-secondary btn-sm" type="button" id="s-ai-reset">${icon('reset')}Reset usage</button>
           </div>
         </section>
       </div>
@@ -72,11 +77,11 @@ export async function render(root) {
         </section>
 
         <section class="card" aria-labelledby="s-about">
-          <div class="card-header"><h2 id="s-about">About LearnPath</h2><span class="badge badge-success">${icon('heart')}Free forever</span></div>
+          <div class="card-header"><h2 id="s-about">About LearnPath</h2><span class="badge badge-warning">${icon('clock')}${PLAN.notice}</span></div>
           <div class="stack">
             <p class="small">LearnPath is built for students who can't afford paid coaching or study apps, especially first-generation learners and students in smaller towns.</p>
             <ul class="impact-list">
-              <li>${icon('heart')}<span><strong>100% free.</strong> No subscription, no ads, no payment, no sign-up. Just open the link.</span></li>
+              <li>${icon('heart')}<span><strong>Free for a limited time.</strong> No subscription, no ads, no payment and no sign-up right now. Paid plans may be added later.</span></li>
               <li>${icon('lock')}<span><strong>Private by design.</strong> No accounts and no database of students. PDFs and progress stay in your browser. Only the text of one page is sent to the AI, and only when you click an AI button.</span></li>
               <li>${icon('globe')}<span><strong>Regional languages.</strong> English, Hindi, Tamil, Telugu, Kannada, Malayalam, Bengali and Marathi.</span></li>
               <li>${icon('eye')}<span><strong>Accessible.</strong> Read aloud, an easy-to-read font, large text, full keyboard use and high-contrast colors.</span></li>
@@ -145,6 +150,19 @@ export async function render(root) {
     if (box) box.checked = ev.detail === 'dark';
   };
   window.addEventListener('theme-changed', syncTheme);
+
+  // AI usage: show today's count and let the student reset it.
+  const showUsage = async () => {
+    const left = await aiRequestsLeft();
+    $('#s-ai-used', page).textContent = `${DAILY_LIMIT - left} of ${DAILY_LIMIT} used. ${PLAN.noticeLong}`;
+    $('#s-ai-left', page).innerHTML = `${icon('sparkles')}${left} / ${DAILY_LIMIT} left today`;
+  };
+  showUsage();
+  $('#s-ai-reset', page).addEventListener('click', async () => {
+    await resetAiUsage();
+    await showUsage();
+    toast(`AI usage reset. You have ${DAILY_LIMIT} requests again today.`, 'success');
+  });
 
   // Export
   $('#s-export', page).addEventListener('click', async (e) => {

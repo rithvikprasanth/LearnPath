@@ -4,6 +4,7 @@ import { startRouter } from './router.js';
 import { initTimer, subscribe } from './timer.js';
 import { getTheme, setTheme, applyA11y } from './settings.js';
 import { aiRequestsLeft, DAILY_LIMIT } from './ai-client.js';
+import { PLAN } from './plan.js';
 import { openDB } from './db.js';
 import { formatClock, toast, $ } from './ui.js';
 
@@ -48,7 +49,7 @@ function renderThemeButton() {
 
 async function renderQuota() {
   const left = await aiRequestsLeft();
-  $('#ai-quota').innerHTML = `${icon('sparkles', 'sr-only')}${left} of ${DAILY_LIMIT} AI requests left today`;
+  $('#ai-quota').innerHTML = `${left} of ${DAILY_LIMIT} AI requests left today${PLAN.freeForLimitedTime ? `<br><a class="plan-note" href="#/settings">${PLAN.notice}</a>` : ''}`;
 }
 
 // Small timer in the sidebar, visible while a session is running or paused.
